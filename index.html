@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Trucking Log Book</title>
+<meta name="theme-color" content="#12233a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#f2f4f7; --card:#ffffff; --ink:#1a2332; --mut:#6b7686;
+  --blue:#1b6fd6; --green:#1d9e57; --amber:#d9931b; --red:#d64545;
+  --line:#dfe5ec;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; background:var(--bg); color:var(--ink); padding-bottom:76px;}
+header{background:#12233a; color:#fff; padding:14px 16px; position:sticky; top:0; z-index:10;}
+header h1{margin:0; font-size:19px; letter-spacing:.3px;}
+header p{margin:2px 0 0; font-size:12px; color:#9fb3cc;}
+main{padding:12px 12px 20px; max-width:640px; margin:0 auto;}
+.tab{display:none;}
+.tab.active{display:block;}
+.card{background:var(--card); border-radius:12px; padding:14px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.card h2{margin:0 0 10px; font-size:16px;}
+.card h3{margin:12px 0 8px; font-size:14px; color:var(--mut); text-transform:uppercase; letter-spacing:.5px;}
+label{display:block; font-size:13px; color:var(--mut); margin:10px 0 4px;}
+input[type=text],input[type=number],input[type=date],select,textarea{width:100%; padding:11px 12px; font-size:16px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--ink);}
+textarea{resize:vertical; min-height:64px;}
+.btn{display:block; width:100%; padding:14px; font-size:16px; font-weight:700; border:none; border-radius:11px; background:var(--blue); color:#fff; margin-top:10px; cursor:pointer;}
+.btn:active{transform:scale(.99); opacity:.92;}
+.btn.green{background:var(--green);} .btn.red{background:var(--red);} .btn.ghost{background:#e8edf3; color:var(--ink);}
+.btn.small{padding:9px; font-size:14px; margin-top:6px;}
+.row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.status-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:10px 0;}
+.status-btn{padding:26px 8px; font-size:19px; font-weight:700; border:2px solid var(--line); border-radius:12px; background:#fff; cursor:pointer; color:var(--ink);}
+.status-btn small{display:block; font-weight:400; font-size:13px; color:var(--mut); margin-top:4px;}
+.status-btn.on{border-color:var(--blue); background:#e8f1fd;}
+.status-btn[data-s="off"].on{border-color:var(--mut); background:#eef1f5;}
+.status-btn[data-s="sleeper"].on{border-color:var(--amber); background:#fdf3e2;}
+.status-btn[data-s="driving"].on{border-color:var(--green); background:#e6f6ee;}
+.status-btn[data-s="onduty"].on{border-color:var(--blue); background:#e8f1fd;}
+#graph{width:100%; height:auto; background:#fff; border:1px solid var(--line); border-radius:9px; touch-action:manipulation;}
+.timeline{margin:8px 0 0; padding:0; list-style:none; font-size:14px;}
+.timeline li{display:flex; justify-content:space-between; align-items:center; padding:9px 4px; border-bottom:1px solid var(--line);}
+.timeline li:last-child{border-bottom:none;}
+.pill{font-size:12px; font-weight:700; padding:3px 10px; border-radius:20px; background:#eef1f5; color:var(--ink);}
+.pill.off{background:#e2e7ee;} .pill.sleeper{background:#fbeed3; color:#8a5a00;}
+.pill.driving{background:#d7f2e3; color:#0c6b3c;} .pill.onduty{background:#dbe9fd; color:#134f9e;}
+.chips{display:flex; flex-wrap:wrap; gap:8px; margin:8px 0;}
+.chip{padding:9px 13px; font-size:14px; border:1px solid var(--line); border-radius:20px; background:#fff; cursor:pointer;}
+.chip:active{background:#e8f1fd;}
+.remark{display:flex; gap:8px; align-items:center; padding:8px 4px; border-bottom:1px solid var(--line); font-size:14px;}
+.remark time{color:var(--mut); font-size:12px; min-width:44px;}
+.remark button{margin-left:auto; border:none; background:none; color:var(--red); font-size:16px; cursor:pointer;}
+.sigpad{width:100%; height:130px; border:2px dashed #b9c4d2; border-radius:9px; background:#fff; touch-action:none;}
+.totals{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;}
+.total{background:#f4f7fa; border-radius:9px; padding:10px; font-size:13px;}
+.total b{display:block; font-size:17px; margin-top:2px;}
+.insp-item{display:flex; gap:10px; align-items:center; padding:10px 4px; border-bottom:1px solid var(--line); font-size:14px;}
+.insp-item .code{color:var(--mut); font-size:12px; min-width:26px;}
+.insp-item.defect{background:#fdeeee; margin:0 -14px; padding:10px 14px;}
+.insp-item input[type=checkbox]{width:22px; height:22px;}
+.daynav{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+.daynav button{border:1px solid var(--line); background:#fff; border-radius:9px; padding:9px 14px; font-size:15px; cursor:pointer;}
+.daynav b{font-size:16px;}
+nav.tabs{position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid var(--line); display:flex; z-index:10;}
+nav.tabs button{flex:1; border:none; background:none; padding:10px 2px 12px; font-size:11px; color:var(--mut); cursor:pointer;}
+nav.tabs button .ico{display:block; font-size:20px; margin-bottom:2px;}
+nav.tabs button.on{color:var(--blue); font-weight:700;}
+.dayrow{display:flex; align-items:center; justify-content:space-between; padding:11px 4px; border-bottom:1px solid var(--line); font-size:14px;}
+.dayrow .acts{display:flex; gap:6px;}
+.dayrow .acts button{border:1px solid var(--line); background:#fff; border-radius:8px; padding:7px 10px; font-size:13px; cursor:pointer;}
+.note{font-size:13px; color:var(--mut); line-height:1.5;}
+.hidden{display:none !important;}
+#printSheet{display:none;}
+.mini{border:1px solid var(--line); background:#fff; border-radius:10px; padding:12px 18px; font-size:16px; font-weight:600; cursor:pointer; margin-left:6px; white-space:nowrap; min-height:48px;}
+.mini.del{color:var(--red); border-color:#f0c0c0;}
+.chip{padding:13px 20px; font-size:16px; border:1px solid var(--line); border-radius:22px; background:#fff; cursor:pointer;}
+.hwrap{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+.hfs{font-size:26px; background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.4); border-radius:10px; padding:8px 14px; cursor:pointer; flex-shrink:0;}
+.card.fs{position:fixed; inset:0; z-index:60; margin:0; border-radius:0; max-width:none; overflow-y:auto;}
+.card.fs h2 .fsbtn{font-size:16px;}
+.timeline li{gap:8px; flex-wrap:wrap;}
+input[type=time]{width:100%; padding:11px 12px; font-size:16px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--ink);}
+@media print{
+  body{padding:0; background:#fff;}
+  header, main, nav.tabs{display:none !important;}
+  #printSheet{display:block !important; color:#000;}
+  #printSheet h2{font-size:18px; margin:0 0 6px;}
+  #printSheet table{width:100%; border-collapse:collapse; font-size:12px; margin:8px 0;}
+  #printSheet th,#printSheet td{border:1px solid #000; padding:5px 7px; text-align:left;}
+  #printSheet .sig{max-height:70px; border:1px solid #000; margin-top:4px;}
+  #printSheet .sec{margin-bottom:14px; page-break-inside:avoid;}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div><h1>&#128666; Trucking Log Book</h1>
+    <p>Canadian daily log &amp; inspection &mdash; tap, don't write</p></div>
+    <button class="hfs" onclick="toggleAppFs()" title="Full screen">&#9956;</button>
+  </div>
+</header>
+<main id="app">
+
+  <!-- SETUP -->
+  <section class="tab" id="tab-setup">
+    <div class="card">
+      <h2>Driver &amp; Truck Setup</h2>
+      <p class="note">Enter once. Used on every daily log and inspection report.</p>
+      <label>Driver name</label><input type="text" id="p_driver" placeholder="Brandon Hopkins">
+      <label>Carrier</label><input type="text" id="p_carrier" placeholder="FJ Wadden &amp; Sons">
+      <label>Home terminal (city, province)</label><input type="text" id="p_terminal" placeholder="Deer Lake, NL">
+      <label>Truck / tractor plate</label><input type="text" id="p_plate" placeholder="CJO 943">
+      <label>Trailer plate (optional)</label><input type="text" id="p_trailer" placeholder="">
+      <label>Cycle</label>
+      <select id="p_cycle"><option value="70">70 hr / 7 day</option><option value="120">120 hr / 14 day</option></select>
+      <button class="btn" onclick="saveProfile()">Save Setup</button>
+    </div>
+  </section>
+
+  <!-- DAILY LOG -->
+  <section class="tab" id="tab-log">
+    <div class="daynav">
+      <button onclick="moveDay(-1)">&larr;</button>
+      <b id="logDateLabel"></b>
+      <button onclick="moveDay(1)">&rarr;</button>
+    </div>
+    <div class="card">
+      <h2>Right now: <span id="nowStatus" class="pill off">Off Duty</span></h2>
+      <div class="status-grid">
+        <button class="status-btn" data-s="off" onclick="setStatus('off')">Off Duty<small>rest, meals, waiting</small></button>
+        <button class="status-btn" data-s="sleeper" onclick="setStatus('sleeper')">Sleeper Berth<small>in the bunk</small></button>
+        <button class="status-btn" data-s="driving" onclick="setStatus('driving')">Driving<small>behind the wheel</small></button>
+        <button class="status-btn" data-s="onduty" onclick="setStatus('onduty')">On Duty<small>fuel, loading, inspection</small></button>
+      </div>
+      <div class="row2">
+        <div><label>Start odometer</label><input type="number" id="d_startOdo" inputmode="numeric" onchange="saveDay()"></div>
+        <div><label>End odometer</label><input type="number" id="d_endOdo" inputmode="numeric" onchange="saveDay()"></div>
+      </div>
+    </div>
+    <div class="card" id="graphCard">
+      <h2>24-Hour Graph <button class="mini fsbtn" id="graphFsBtn" onclick="toggleFs('graphCard','graphFsBtn')">&#9956; Full screen</button></h2>
+      <canvas id="graph" width="720" height="220"></canvas>
+      <div class="totals" id="totals"></div>
+    </div>
+    <div class="card">
+      <h2>Timeline</h2>
+      <p class="note">Tap Edit on any entry to fix its time or status.</p>
+      <ul class="timeline" id="timeline"></ul>
+      <h3>Add a missed entry</h3>
+      <div class="row2">
+        <div><label>Time</label><input type="time" id="ne_time"></div>
+        <div><label>Status</label><select id="ne_status">
+          <option value="off">Off Duty</option>
+          <option value="sleeper">Sleeper Berth</option>
+          <option value="driving">Driving</option>
+          <option value="onduty">On Duty (not driving)</option>
+        </select></div>
+      </div>
+      <button class="btn" onclick="addPastEntry()">Add entry at that time</button>
+    </div>
+    <div class="card">
+      <h2>Remarks</h2>
+      <div class="chips" id="chipRow"></div>
+      <div class="row2">
+        <input type="text" id="customRemark" placeholder="Type a remark...">
+        <button class="btn small" onclick="addCustomRemark()">Add</button>
+      </div>
+      <div id="remarkList"></div>
+    </div>
+    <div class="card">
+      <h2>Driver Signature</h2>
+      <canvas class="sigpad" id="sigpad" width="600" height="130"></canvas>
+      <button class="btn ghost small" onclick="clearSig()">Clear signature</button>
+    </div>
+    <button class="btn green" onclick="printDay()">&#128438; Print / Save Daily Log</button>
+    <button class="btn" onclick="saveDayFile()">&#11015; Save Day's Record (dated file)</button>
+  </section>
+
+  <!-- INSPECTION -->
+  <section class="tab" id="tab-insp">
+    <div class="card">
+      <h2>Vehicle Inspection Report</h2>
+      <label>Pre-trip or post-trip?</label>
+      <select id="i_type"><option value="pre">Pre-trip</option><option value="post">Post-trip</option></select>
+      <div class="row2">
+        <div><label>Odometer</label><input type="number" id="i_odo" inputmode="numeric"></div>
+        <div><label>Location</label><input type="text" id="i_loc" placeholder="Deer Lake"></div>
+      </div>
+      <h3>Tap any item with a defect</h3>
+      <div id="inspList"></div>
+      <div id="defectNotes"></div>
+      <h3>Declarations</h3>
+      <label style="display:flex;gap:10px;align-items:center;font-size:15px;color:var(--ink);">
+        <input type="checkbox" id="i_nodefect" style="width:22px;height:22px;"> No defects found
+      </label>
+      <label style="display:flex;gap:10px;align-items:center;font-size:15px;color:var(--ink);">
+        <input type="checkbox" id="i_nomajor" style="width:22px;height:22px;"> No major defects found
+      </label>
+    </div>
+    <div class="card">
+      <h2>Inspector / Driver Signature</h2>
+      <canvas class="sigpad" id="isigpad" width="600" height="130"></canvas>
+      <button class="btn ghost small" onclick="clearISig()">Clear signature</button>
+      <button class="btn" onclick="saveInsp()">Save Inspection Report</button>
+    </div>
+    <button class="btn green" onclick="printInsp()">&#128438; Print / Save Inspection</button>
+  </section>
+
+  <!-- DAYS -->
+  <section class="tab" id="tab-days">
+    <div class="card">
+      <h2>Saved Days</h2>
+      <div id="dayList"></div>
+    </div>
+  </section>
+
+  <!-- BACKUP -->
+  <section class="tab" id="tab-backup">
+    <div class="card">
+      <h2>Backup &amp; Restore</h2>
+      <p class="note">Your entries are saved in this browser on your phone. Export a backup file regularly (e.g. weekly) so you never lose your logs.</p>
+      <button class="btn" onclick="exportBackup()">&#11015; Export Backup File</button>
+      <label>Restore from backup file</label>
+      <input type="file" id="importFile" accept=".json" onchange="importBackup(event)">
+      <h3>Storage status</h3>
+      <p class="note" id="storageNote"></p>
+    </div>
+  </section>
+
+</main>
+
+<nav class="tabs">
+  <button data-t="tab-log" class="on" onclick="showTab('tab-log')"><span class="ico">&#128203;</span>Log</button>
+  <button data-t="tab-insp" onclick="showTab('tab-insp')"><span class="ico">&#128295;</span>Inspect</button>
+  <button data-t="tab-days" onclick="showTab('tab-days')"><span class="ico">&#128197;</span>Days</button>
+  <button data-t="tab-setup" onclick="showTab('tab-setup')"><span class="ico">&#9881;</span>Setup</button>
+  <button data-t="tab-backup" onclick="showTab('tab-backup')"><span class="ico">&#128190;</span>Backup</button>
+</nav>
+
+<div id="printSheet"></div>
+
+<script>
+"use strict";
+/* ============ helpers ============ */
+const $ = id => document.getElementById(id);
+const pad2 = n => String(n).padStart(2,'0');
+const fmtMin = m => pad2(Math.floor(m/60))+':'+pad2(m%60);
+const nowMin = () => { const d=new Date(); return d.getHours()*60+d.getMinutes(); };
+const todayStr = (off=0) => { const d=new Date(); d.setDate(d.getDate()+off);
+  return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); };
+const niceDate = s => { const [y,m,dd]=s.split('-').map(Number);
+  return new Date(y,m-1,dd).toLocaleDateString('en-CA',{weekday:'short',month:'short',day:'numeric',year:'numeric'}); };
+
+const STATUSES = [
+  {id:'off', label:'Off Duty'},
+  {id:'sleeper', label:'Sleeper Berth'},
+  {id:'driving', label:'Driving'},
+  {id:'onduty', label:'On Duty (not driving)'}
+];
+const statusLabel = id => (STATUSES.find(s=>s.id===id)||{label:id}).label;
+
+const CHIPS = ['Pre-Trip','Post-Trip','Loading','Unloading','Deer Lake','Corner Brook','Stephenville','Massey Drive',"St. John's",'Fuel','Break','Waiting','Breakdown'];
+
+const INSP_ITEMS = [
+  ['13','General'],['2','Cab'],['6','Driver Controls'],['15','Heater / Defroster'],
+  ['16','Horn'],['19','Steering'],['7','Driver Seat'],['14','Glass and Mirrors'],
+  ['23','Windshield Wiper / Washer'],['9','Emergency Equipment & Safety Devices'],
+  ['12','Fuel Systems'],['1','Air Brake System'],['21','Tires'],['22','Wheels, Hubs, Fasteners'],
+  ['20','Suspension System'],['4','Coupling Devices'],['18','Lamps / Reflectors'],
+  ['5','Dangerous Goods'],['10','Exhaust System'],['11','Frame and Cargo Body'],
+  ['3','Cargo Securement'],['17','Hydraulic Brakes'],['8','Electric Brakes']
+];
+
+/* ============ storage ============ */
+const LS_KEY='truckLogBook.v1';
+let storageOK=true;
+function loadState(){
+  try{ const raw=localStorage.getItem(LS_KEY); if(raw) return JSON.parse(raw); }
+  catch(e){ storageOK=false; }
+  return {profile:null, days:{}};
+}
+function persist(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }
+  catch(e){ storageOK=false; }
+}
+let S = loadState();
+let curDate = todayStr();
+
+function blankDay(date){
+  return {date, startOdo:'', endOdo:'', events:[{min:0,status:'off'}], remarks:[], sig:'', insp:null};
+}
+function getDay(date){
+  if(!S.days[date]) S.days[date]=blankDay(date);
+  return S.days[date];
+}
+function saveDay(){ persist(); }
+
+/* ============ tabs ============ */
+function showTab(id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('on'));
+  $(''+id).classList.add('active');
+  document.querySelector('nav.tabs button[data-t="'+id+'"]').classList.add('on');
+  if(id==='tab-log') renderLog();
+  if(id==='tab-days') renderDays();
+  if(id==='tab-backup') renderBackupNote();
+  window.scrollTo(0,0);
+}
+
+/* ============ setup ============ */
+function fillProfile(){
+  const p=S.profile||{};
+  $('p_driver').value=p.driver||''; $('p_carrier').value=p.carrier||'';
+  $('p_terminal').value=p.terminal||''; $('p_plate').value=p.plate||'';
+  $('p_trailer').value=p.trailer||''; $('p_cycle').value=p.cycle||'70';
+}
+function saveProfile(){
+  S.profile={driver:$('p_driver').value.trim(), carrier:$('p_carrier').value.trim(),
+    terminal:$('p_terminal').value.trim(), plate:$('p_plate').value.trim(),
+    trailer:$('p_trailer').value.trim(), cycle:$('p_cycle').value};
+  persist(); alert('Setup saved.'); showTab('tab-log');
+}
+
+/* ============ daily log ============ */
+function moveDay(d){
+  const [y,m,dd]=curDate.split('-').map(Number); const dt=new Date(y,m-1,dd);
+  dt.setDate(dt.getDate()+d);
+  curDate=dt.getFullYear()+'-'+pad2(dt.getMonth()+1)+'-'+pad2(dt.getDate());
+  renderLog();
+}
+function curStatus(){
+  const ev=getDay(curDate).events; return ev[ev.length-1].status;
+}
+function setStatus(st){
+  const d=getDay(curDate), ev=d.events, m=nowMin();
+  const last=ev[ev.length-1];
+  if(last.status===st && last.min===m) return;
+  if(last.status===st){ last.min=m; } else { ev.push({min:m,status:st}); }
+  saveDay(); renderLog();
+}
+function renderLog(){
+  const d=getDay(curDate);
+  $('logDateLabel').textContent=niceDate(curDate);
+  $('d_startOdo').value=d.startOdo; $('d_endOdo').value=d.endOdo;
+  const cs=curStatus();
+  const pill=$('nowStatus'); pill.textContent=statusLabel(cs); pill.className='pill '+cs;
+  document.querySelectorAll('.status-btn').forEach(b=>b.classList.toggle('on', b.dataset.s===cs));
+  drawGraph(d); renderTotals(d); renderTimeline(d); renderRemarks(d); renderChips();
+  loadSig($('sigpad'), d.sig);
+}
+function totalsFor(d){
+  const t={off:0,sleeper:0,driving:0,onduty:0};
+  const ev=d.events;
+  for(let i=0;i<ev.length;i++){
+    const end=(i+1<ev.length)?ev[i+1].min:1440;
+    t[ev[i].status]+=Math.max(0,end-ev[i].min);
+  }
+  return t;
+}
+function fmtH(m){ return (m/60).toFixed(1)+' h'; }
+function renderTotals(d){
+  const t=totalsFor(d);
+  $('totals').innerHTML=STATUSES.map(s=>
+    '<div class="total">'+s.label+'<b>'+fmtH(t[s.id])+'</b></div>').join('')+
+    '<div class="total">Distance<b>'+distStr(d)+'</b></div>'+
+    '<div class="total">On-duty total<b>'+fmtH(t.driving+t.onduty)+'</b></div>';
+}
+function distStr(d){
+  if(d.startOdo!==''&&d.endOdo!==''){ const v=(+d.endOdo)-(+d.startOdo); return v>=0?v+' km':'—'; }
+  return '—';
+}
+function renderTimeline(d){
+  const ev=d.events;
+  $('timeline').innerHTML=ev.map((e,i)=>{
+    const end=(i+1<ev.length)?fmtMin(ev[i+1].min):'24:00';
+    const btns=(i===0)
+      ? '<span><button class="mini" onclick="editEvent('+i+')">Status</button></span>'
+      : '<span><button class="mini" onclick="editEvent('+i+')">Edit</button><button class="mini del" onclick="delEvent('+i+')">Delete</button></span>';
+    return '<li id="evrow_'+i+'"><span><span class="pill '+e.status+'">'+statusLabel(e.status)+
+      '</span></span><span>'+fmtMin(e.min)+' &ndash; '+end+'</span>'+btns+'</li>';
+  }).join('');
+}
+function editEvent(i){
+  const d=getDay(curDate), e=d.events[i];
+  const row=$('evrow_'+i);
+  const opts=STATUSES.map(s=>'<option value="'+s.id+'"'+(s.id===e.status?' selected':'')+'>'+s.label+'</option>').join('');
+  const timePart=(i===0)
+    ? '<span class="note">00:00 — start of day (fixed)</span>'
+    : '<label>Time</label><input type="time" id="ee_time" value="'+fmtMin(e.min)+'">';
+  row.innerHTML='<div style="flex:1;min-width:150px;">'+timePart+
+    '<label>Status</label><select id="ee_status">'+opts+'</select></div>'+
+    '<span><button class="mini" onclick="saveEventEdit('+i+')">Save</button>'+
+    '<button class="mini" onclick="renderTimeline(getDay(curDate))">Cancel</button></span>';
+}
+function saveEventEdit(i){
+  const d=getDay(curDate);
+  let m=d.events[i].min;
+  const te=$('ee_time');
+  if(te&&te.value){ const parts=te.value.split(':'); m=(+parts[0])*60+(+parts[1]); }
+  d.events[i]={min:m, status:$('ee_status').value};
+  d.events.sort((a,b)=>a.min-b.min);
+  if(d.events[0].min!==0) d.events.unshift({min:0,status:'off'});
+  saveDay(); renderLog();
+}
+function delEvent(i){
+  const d=getDay(curDate);
+  if(!confirm('Delete this entry ('+statusLabel(d.events[i].status)+' at '+fmtMin(d.events[i].min)+')?')) return;
+  d.events.splice(i,1);
+  if(d.events.length===0||d.events[0].min!==0) d.events.unshift({min:0,status:'off'});
+  saveDay(); renderLog();
+}
+function addPastEntry(){
+  const tv=$('ne_time').value;
+  if(!tv){ alert('Pick a time first.'); return; }
+  const parts=tv.split(':'), m=(+parts[0])*60+(+parts[1]);
+  const d=getDay(curDate);
+  d.events.push({min:m, status:$('ne_status').value});
+  d.events.sort((a,b)=>a.min-b.min);
+  if(d.events[0].min!==0) d.events.unshift({min:0,status:'off'});
+  $('ne_time').value='';
+  saveDay(); renderLog();
+}
+function drawGraph(d){
+  const c=$('graph'), ctx=c.getContext('2d');
+  const W=c.width, H=c.height, L=86, R=8, T=8, B=18;
+  const gw=W-L-R, gh=H-T-B;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+  const rows=STATUSES.length, rh=gh/rows;
+  ctx.strokeStyle='#dfe5ec'; ctx.lineWidth=1; ctx.fillStyle='#6b7686'; ctx.font='11px sans-serif';
+  STATUSES.forEach((s,i)=>{
+    const y=T+i*rh;
+    ctx.beginPath(); ctx.moveTo(L,y); ctx.lineTo(W-R,y); ctx.stroke();
+    ctx.fillText(s.label,4,y+rh/2+4);
+  });
+  ctx.beginPath(); ctx.moveTo(L,T+gh); ctx.lineTo(W-R,T+gh); ctx.stroke();
+  for(let h=0;h<=24;h++){
+    const x=L+gw*h/24;
+    ctx.strokeStyle=h%3===0?'#b9c4d2':'#eef1f5';
+    ctx.beginPath(); ctx.moveTo(x,T); ctx.lineTo(x,T+gh); ctx.stroke();
+    if(h%3===0){ ctx.fillStyle='#6b7686'; ctx.fillText(h+'',x-4,H-4); }
+  }
+  const yFor=st=>{ const i=STATUSES.findIndex(s=>s.id===st); return T+i*rh+rh/2; };
+  const xFor=m=>L+gw*Math.min(1440,Math.max(0,m))/1440;
+  ctx.strokeStyle='#1b6fd6'; ctx.lineWidth=3; ctx.beginPath();
+  const ev=d.events;
+  ev.forEach((e,i)=>{
+    const x1=xFor(e.min), x2=xFor(i+1<ev.length?ev[i+1].min:1440), y=yFor(e.status);
+    if(i===0) ctx.moveTo(x1,y); else ctx.lineTo(x1,y);
+    ctx.lineTo(x2,y);
+  });
+  ctx.stroke();
+}
+function renderChips(){
+  $('chipRow').innerHTML=CHIPS.map(c=>'<button class="chip" onclick="addRemark(\''+c.replace(/'/g,"\\'")+'\')">'+c+'</button>').join('');
+}
+function addRemark(text){
+  const d=getDay(curDate);
+  d.remarks.push({t:fmtMin(nowMin()), text});
+  saveDay(); renderRemarks(d);
+}
+function addCustomRemark(){
+  const v=$('customRemark').value.trim(); if(!v) return;
+  addRemark(v); $('customRemark').value='';
+}
+function renderRemarks(d){
+  $('remarkList').innerHTML=d.remarks.map((r,i)=>
+    '<div class="remark"><time>'+r.t+'</time><span>'+escapeHtml(r.text)+
+    '</span><button onclick="delRemark('+i+')">&times;</button></div>').join('');
+}
+function delRemark(i){ const d=getDay(curDate); d.remarks.splice(i,1); saveDay(); renderRemarks(d); }
+function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ============ signature pads ============ */
+function wireSig(canvas, onSave){
+  const ctx=canvas.getContext('2d');
+  ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.strokeStyle='#1a2332';
+  let drawing=false, last=null, hasInk=false;
+  const pos=e=>{ const r=canvas.getBoundingClientRect();
+    const t=e.touches?e.touches[0]:e;
+    return {x:(t.clientX-r.left)*canvas.width/r.width, y:(t.clientY-r.top)*canvas.height/r.height}; };
+  const start=e=>{ e.preventDefault(); drawing=true; last=pos(e); };
+  const move=e=>{ if(!drawing) return; e.preventDefault();
+    const p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke();
+    last=p; hasInk=true; };
+  const end=()=>{ if(drawing&&hasInk) onSave(canvas.toDataURL()); drawing=false; };
+  canvas.addEventListener('pointerdown',start); canvas.addEventListener('pointermove',move);
+  canvas.addEventListener('pointerup',end); canvas.addEventListener('pointerleave',()=>{drawing=false;});
+}
+function loadSig(canvas, dataURL){
+  const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(dataURL){ const img=new Image(); img.onload=()=>ctx.drawImage(img,0,0,canvas.width,canvas.height); img.src=dataURL; }
+}
+function clearSig(){ getDay(curDate).sig=''; saveDay(); loadSig($('sigpad'),''); }
+
+/* ============ inspection ============ */
+let inspDefects={}; // code -> note
+function renderInspList(){
+  inspDefects={};
+  $('inspList').innerHTML=INSP_ITEMS.map(([code,label])=>
+    '<div class="insp-item" id="ii_'+code+'"><input type="checkbox" onchange="toggleDefect(\''+code+'\',this)">'+
+    '<span class="code">'+code+'</span><span>'+label+'</span></div>').join('');
+  $('defectNotes').innerHTML='';
+}
+function toggleDefect(code, box){
+  const row=$('ii_'+code);
+  if(box.checked){
+    row.classList.add('defect');
+    inspDefects[code]=$('insp_item_'+code)?$('insp_item_'+code).value:'';
+    const label=INSP_ITEMS.find(i=>i[0]===code)[1];
+    const div=document.createElement('div');
+    div.id='dn_'+code; div.style.margin='6px 0';
+    div.innerHTML='<label>Defect note — '+label+'</label><input type="text" id="insp_item_'+code+'" placeholder="describe the defect">';
+    $('defectNotes').appendChild(div);
+  }else{
+    row.classList.remove('defect'); delete inspDefects[code];
+    const div=$('dn_'+code); if(div) div.remove();
+  }
+}
+function clearISig(){ const d=getDay(curDate); if(d.insp) d.insp.sig=''; saveDay(); loadSig($('isigpad'), d.insp?d.insp.sig:''); }
+function saveInsp(){
+  const d=getDay(curDate);
+  const defects=Object.keys(inspDefects).map(code=>{
+    const noteEl=$('insp_item_'+code);
+    return {code, label:INSP_ITEMS.find(i=>i[0]===code)[1], note:noteEl?noteEl.value.trim():''};
+  });
+  d.insp={type:$('i_type').value, date:curDate, odo:$('i_odo').value.trim(), loc:$('i_loc').value.trim(),
+    defects, noDefects:$('i_nodefect').checked, noMajor:$('i_nomajor').checked,
+    sig:$('isigpad').toDataURL()};
+  saveDay(); alert('Inspection report saved for '+niceDate(curDate)+'.');
+}
+function loadInspIntoForm(){
+  const d=getDay(curDate), insp=d.insp;
+  renderInspList();
+  if(!insp){ $('i_odo').value=''; $('i_loc').value=''; $('i_nodefect').checked=false; $('i_nomajor').checked=false; loadSig($('isigpad'),''); return; }
+  $('i_type').value=insp.type; $('i_odo').value=insp.odo||''; $('i_loc').value=insp.loc||'';
+  $('i_nodefect').checked=!!insp.noDefects; $('i_nomajor').checked=!!insp.noMajor;
+  (insp.defects||[]).forEach(df=>{
+    const box=document.querySelector('#ii_'+df.code+' input');
+    if(box){ box.checked=true; toggleDefect(df.code, box);
+      const note=$('insp_item_'+df.code); if(note) note.value=df.note||''; }
+  });
+  loadSig($('isigpad'), insp.sig||'');
+}
+
+/* ============ fullscreen ============ */
+function toggleFs(cardId, btnId){
+  const card=$(cardId); card.classList.toggle('fs');
+  const on=card.classList.contains('fs');
+  $(btnId).innerHTML=on?'\u2715 Close':'&#9956; Full screen';
+  document.body.style.overflow=on?'hidden':'';
+  if(cardId==='graphCard') drawGraph(getDay(curDate));
+  if(on) card.scrollTop=0;
+}
+function toggleAppFs(){
+  const el=document.documentElement;
+  if(document.fullscreenElement||document.webkitFullscreenElement){
+    if(document.exitFullscreen) document.exitFullscreen();
+    else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
+  }else if(el.requestFullscreen){ el.requestFullscreen(); }
+  else if(el.webkitRequestFullscreen){ el.webkitRequestFullscreen(); }
+}
+
+/* ============ days list ============ */
+function renderDays(){
+  const dates=Object.keys(S.days).sort().reverse();
+  $('dayList').innerHTML=dates.length?dates.map(dt=>{
+    const d=S.days[dt], t=totalsFor(d);
+    return '<div class="dayrow"><div><b>'+niceDate(dt)+'</b><br><span class="note">Drive '+fmtH(t.driving)+' · On-duty '+fmtH(t.driving+t.onduty)+' · '+distStr(d)+'</span></div>'+
+      '<div class="acts"><button onclick="openDay(\''+dt+'\')">Open</button><button onclick="saveDayFile(\''+dt+'\')">File</button><button onclick="printDayById(\''+dt+'\')">Print</button><button onclick="delDay(\''+dt+'\')">Del</button></div></div>';
+  }).join(''):'<p class="note">No days yet. Tap the Log tab to start today.</p>';
+}
+function openDay(dt){ curDate=dt; showTab('tab-log'); }
+function delDay(dt){ if(confirm('Delete the log for '+niceDate(dt)+'?')){ delete S.days[dt]; persist(); renderDays(); } }
+
+/* ============ backup ============ */
+function exportBackup(){
+  const blob=new Blob([JSON.stringify(S,null,1)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='trucking-log-book-backup-'+todayStr()+'.json';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function importBackup(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ const data=JSON.parse(r.result);
+      if(data&&data.days){ S=data; persist(); fillProfile(); renderLog(); alert('Backup restored.'); }
+      else alert('That file does not look like a log book backup.');
+    }catch(e){ alert('Could not read that file.'); } };
+  r.readAsText(f); ev.target.value='';
+}
+function renderBackupNote(){
+  const n=Object.keys(S.days).length;
+  $('storageNote').textContent=storageOK?
+    'Browser storage is working. '+n+' day(s) saved on this phone. Export a backup file weekly to be safe.':
+    'WARNING: browser storage is not available — use Export Backup after every entry so nothing is lost.';
+}
+
+/* ============ print ============ */
+function printDay(){ printDayById(curDate); }
+function dailyLogInner(dt){
+  const d=S.days[dt]||blankDay(dt), p=S.profile||{}, t=totalsFor(d);
+  const evRows=d.events.map((e,i)=>{
+    const end=(i+1<d.events.length)?fmtMin(d.events[i+1].min):'24:00';
+    return '<tr><td>'+fmtMin(e.min)+' – '+end+'</td><td>'+statusLabel(e.status)+'</td></tr>';
+  }).join('');
+  const remRows=(d.remarks||[]).map(r=>'<tr><td>'+r.t+'</td><td>'+escapeHtml(r.text)+'</td></tr>').join('')||'<tr><td colspan="2">—</td></tr>';
+  let h=
+    '<div class="sec"><h2>Driver\'s Daily Log — '+niceDate(dt)+'</h2>'+
+    '<table><tr><th>Driver</th><td>'+escapeHtml(p.driver||'')+'</td><th>Carrier</th><td>'+escapeHtml(p.carrier||'')+'</td></tr>'+
+    '<tr><th>Home terminal</th><td>'+escapeHtml(p.terminal||'')+'</td><th>Cycle</th><td>'+(p.cycle||'70')+' hr / '+(p.cycle==='120'?'14':'7')+' day</td></tr>'+
+    '<tr><th>Truck plate</th><td>'+escapeHtml(p.plate||'')+'</td><th>Trailer</th><td>'+escapeHtml(p.trailer||'')+'</td></tr>'+
+    '<tr><th>Start odometer</th><td>'+escapeHtml(String(d.startOdo))+'</td><th>End odometer</th><td>'+escapeHtml(String(d.endOdo))+'</td></tr>'+
+    '<tr><th>Total distance</th><td>'+distStr(d)+'</td><th>Off duty</th><td>'+fmtH(t.off)+'</td></tr>'+
+    '<tr><th>Sleeper berth</th><td>'+fmtH(t.sleeper)+'</td><th>Driving</th><td>'+fmtH(t.driving)+'</td></tr>'+
+    '<tr><th>On duty (not driving)</th><td>'+fmtH(t.onduty)+'</td><th>On-duty total</th><td>'+fmtH(t.driving+t.onduty)+'</td></tr></table></div>'+
+    '<div class="sec"><h2>Duty Status Changes</h2><table><tr><th>Time</th><th>Status</th></tr>'+evRows+'</table></div>'+
+    '<div class="sec"><h2>Remarks</h2><table><tr><th>Time</th><th>Remark</th></tr>'+remRows+'</table></div>'+
+    (d.sig?'<div class="sec"><h2>Driver Signature</h2><img class="sig" src="'+d.sig+'"></div>':'');
+  const insp=d.insp;
+  if(insp){
+    const defRows=(insp.defects||[]).map(x=>'<tr><td>'+x.code+'</td><td>'+escapeHtml(x.label)+'</td><td>'+escapeHtml(x.note||'')+'</td></tr>').join('')
+      ||'<tr><td colspan="3">—</td></tr>';
+    h+='<div class="sec"><h2>Vehicle Inspection Report ('+(insp.type==='pre'?'Pre-trip':'Post-trip')+') — '+niceDate(dt)+'</h2>'+
+      '<table><tr><th>Odometer</th><td>'+escapeHtml(insp.odo||'')+'</td><th>Location</th><td>'+escapeHtml(insp.loc||'')+'</td></tr>'+
+      '<tr><th>No defects found</th><td>'+(insp.noDefects?'YES':'—')+'</td><th>No major defects</th><td>'+(insp.noMajor?'YES':'—')+'</td></tr></table>'+
+      '<h2>Defects</h2><table><tr><th>Code</th><th>Item</th><th>Note</th></tr>'+defRows+'</table>'+
+      (insp.sig?'<h2>Signature</h2><img class="sig" src="'+insp.sig+'">':'')+'</div>';
+  }
+  return h;
+}
+function printDayById(dt){
+  $('printSheet').innerHTML=dailyLogInner(dt);
+  window.print();
+}
+function saveDayFile(dt){
+  dt=dt||curDate;
+  const doc='<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'+
+    '<meta name="viewport" content="width=device-width,initial-scale=1">'+
+    '<title>Truck Log '+dt+'</title><style>'+
+    'body{font-family:Arial,sans-serif;padding:16px;color:#000;max-width:800px;margin:0 auto}'+
+    'h2{font-size:17px;margin:16px 0 6px}'+
+    'table{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0}'+
+    'th,td{border:1px solid #000;padding:5px 7px;text-align:left}'+
+    '.sig{max-height:70px;border:1px solid #000;margin-top:4px}'+
+    '.sec{margin-bottom:14px;page-break-inside:avoid}</style></head><body>'+
+    dailyLogInner(dt)+'</body></html>';
+  const blob=new Blob([doc],{type:'text/html'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='trucklog-'+dt+'.html';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function printInsp(){
+  const d=getDay(curDate), p=S.profile||{}, insp=d.insp;
+  if(!insp){ alert('Save the inspection report first.'); return; }
+  const defRows=(insp.defects||[]).map(x=>'<tr><td>'+x.code+'</td><td>'+escapeHtml(x.label)+'</td><td>'+escapeHtml(x.note||'')+'</td></tr>').join('')
+    ||'<tr><td colspan="3">—</td></tr>';
+  $('printSheet').innerHTML=
+    '<div class="sec"><h2>Driver\'s Vehicle Inspection Report — '+niceDate(curDate)+'</h2>'+
+    '<table><tr><th>Driver</th><td>'+escapeHtml(p.driver||'')+'</td><th>Carrier</th><td>'+escapeHtml(p.carrier||'')+'</td></tr>'+
+    '<tr><th>Type</th><td>'+(insp.type==='pre'?'Pre-trip':'Post-trip')+'</td><th>Odometer</th><td>'+escapeHtml(insp.odo||'')+'</td></tr>'+
+    '<tr><th>Location</th><td>'+escapeHtml(insp.loc||'')+'</td><th>Truck plate</th><td>'+escapeHtml(p.plate||'')+'</td></tr>'+
+    '<tr><th>No defects found</th><td>'+(insp.noDefects?'YES':'—')+'</td><th>No major defects</th><td>'+(insp.noMajor?'YES':'—')+'</td></tr></table></div>'+
+    '<div class="sec"><h2>Defects</h2><table><tr><th>Code</th><th>Item</th><th>Note</th></tr>'+defRows+'</table></div>'+
+    (insp.sig?'<div class="sec"><h2>Signature</h2><img class="sig" src="'+insp.sig+'"></div>':'');
+  window.print();
+}
+
+/* ============ init ============ */
+wireSig($('sigpad'), dataURL=>{ getDay(curDate).sig=dataURL; saveDay(); });
+wireSig($('isigpad'), dataURL=>{ const d=getDay(curDate); if(!d.insp) d.insp={}; d.insp.sig=dataURL; saveDay(); });
+$('d_startOdo').addEventListener('change',()=>{ getDay(curDate).startOdo=$('d_startOdo').value; saveDay(); renderTotals(getDay(curDate)); });
+$('d_endOdo').addEventListener('change',()=>{ getDay(curDate).endOdo=$('d_endOdo').value; saveDay(); renderTotals(getDay(curDate)); });
+fillProfile();
+renderInspList();
+if(!S.profile){ showTab('tab-setup'); } else { showTab('tab-log'); }
+</script>
+<script>
+if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
+  navigator.serviceWorker.register('sw.js').catch(function(){});
+}
+</script>
+</body>
+</html>
