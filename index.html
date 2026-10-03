@@ -46,6 +46,7 @@ textarea{resize:vertical; min-height:64px;}
 .status-btn[data-s="onduty"].on{border-color:var(--blue); background:#e8f1fd;}
 #graphWrap{overflow-x:auto; background:#fff; border:1px solid var(--line); border-radius:9px;}
 #graph{display:block; width:900px; max-width:none; height:auto; touch-action:pan-x pan-y;}
+#overview{display:block; width:100%; height:54px; touch-action:manipulation; cursor:pointer; border-radius:8px; margin-bottom:6px; background:#fff;}
 .timeline{margin:8px 0 0; padding:0; list-style:none; font-size:14px;}
 .timeline li{display:flex; justify-content:space-between; align-items:center; padding:9px 4px; border-bottom:1px solid var(--line);}
 .timeline li:last-child{border-bottom:none;}
@@ -155,6 +156,13 @@ input[type=time]{width:100%; padding:11px 12px; font-size:16px; border:1px solid
       <b id="logDateLabel"></b>
       <button onclick="moveDay(1)">&rarr;</button>
     </div>
+    <div class="card" id="graphCard">
+      <h2>24-Hour Graph <button class="mini fsbtn" id="graphFsBtn" onclick="toggleFs('graphCard','graphFsBtn')">&#9956; Full screen</button></h2>
+      <p class="note" style="margin:0 0 4px">Full day at a glance &mdash; tap the strip to jump to any hour</p>
+      <canvas id="overview"></canvas>
+      <div id="graphWrap"><canvas id="graph" width="900" height="360"></canvas></div>
+      <div class="totals" id="totals"></div>
+    </div>
     <div class="card">
       <h2>Right now: <span id="nowStatus" class="pill off">Off Duty</span></h2>
       <div class="status-grid">
@@ -167,15 +175,6 @@ input[type=time]{width:100%; padding:11px 12px; font-size:16px; border:1px solid
         <div><label>Start odometer</label><input type="number" id="d_startOdo" inputmode="numeric" onchange="saveDay()"></div>
         <div><label>End odometer</label><input type="number" id="d_endOdo" inputmode="numeric" onchange="saveDay()"></div>
       </div>
-    </div>
-    <div class="card" id="graphCard">
-      <h2>24-Hour Graph <button class="mini fsbtn" id="graphFsBtn" onclick="toggleFs('graphCard','graphFsBtn')">&#9956; Full screen</button></h2>
-      <div id="graphWrap"><canvas id="graph" width="900" height="360"></canvas></div>
-      <div class="totals" id="totals"></div>
-    </div>
-    <div class="card">
-      <h2>Hours &amp; Limits — Canada</h2>
-      <div id="recap"></div>
     </div>
     <div class="card">
       <h2>Timeline</h2>
@@ -202,6 +201,10 @@ input[type=time]{width:100%; padding:11px 12px; font-size:16px; border:1px solid
         <button class="btn small" onclick="addCustomRemark()">Add</button>
       </div>
       <div id="remarkList"></div>
+    </div>
+    <div class="card">
+      <h2>Hours &amp; Limits — Canada</h2>
+      <div id="recap"></div>
     </div>
     <div class="card">
       <h2>Driver Signature</h2>
@@ -400,7 +403,7 @@ function renderLog(){
   const cs=curStatus();
   const pill=$('nowStatus'); pill.textContent=statusLabel(cs); pill.className='pill '+cs;
   document.querySelectorAll('.status-btn').forEach(b=>b.classList.toggle('on', b.dataset.s===cs));
-  drawGraph(d); renderTotals(d); renderRecap(); renderTimeline(d); renderRemarks(d); renderChips();
+  drawGraph(d); drawOverview(d); wireOverview(); renderTotals(d); renderRecap(); renderTimeline(d); renderRemarks(d); renderChips();
   loadSig($('sigpad'), d.sig);
 }
 function totalsFor(d){
@@ -542,6 +545,65 @@ function drawGraph(d){
   });
   ctx.textAlign='left';
 }
+/* ---- full-day overview strip: whole 24h at a glance, tap to jump ---- */
+function drawOverview(d){
+  const c=$('overview'); if(!c) return;
+  const wrap=$('graphWrap');
+  const w=Math.max(200, wrap?wrap.clientWidth:c.clientWidth||300), h=54;
+  const dpr=window.devicePixelRatio||1;
+  c.width=w*dpr; c.height=h*dpr;
+  const ctx=c.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+  const xFor=m=>w*Math.min(1440,Math.max(0,m))/1440;
+  const ev=d.events;
+  ev.forEach((e,i)=>{
+    const x1=xFor(e.min), x2=xFor(i+1<ev.length?ev[i+1].min:1440);
+    ctx.fillStyle=STATUS_COLORS[e.status]||'#8a94a3';
+    ctx.fillRect(x1,4,Math.max(1.5,x2-x1),h-26);
+  });
+  ctx.font='10px sans-serif'; ctx.textAlign='center';
+  for(let hh=0;hh<=24;hh+=6){
+    const x=xFor(hh*60);
+    ctx.strokeStyle='#9aa7b8'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,2); ctx.lineTo(x,h-20); ctx.stroke();
+    ctx.fillStyle='#4c5866';
+    ctx.fillText(pad2(hh)+':00', Math.min(w-16,Math.max(16,x)), h-6);
+  }
+  if(curDate===todayStr()){
+    const n=new Date(), m=n.getHours()*60+n.getMinutes(), x=xFor(m);
+    ctx.strokeStyle='#d64545'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h-16); ctx.stroke();
+  }
+  if(wrap && wrap.scrollWidth>wrap.clientWidth){
+    const vx=wrap.scrollLeft/wrap.scrollWidth*w, vw=wrap.clientWidth/wrap.scrollWidth*w;
+    ctx.strokeStyle='#1a2332'; ctx.lineWidth=2;
+    ctx.strokeRect(Math.max(1,vx),1,Math.min(w-2,vw),h-20);
+  }
+}
+function wireOverview(){
+  const c=$('overview'); if(!c||c.dataset.wired) return; c.dataset.wired='1';
+  c.addEventListener('pointerdown',function(e){
+    const r=c.getBoundingClientRect();
+    const frac=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
+    const wrap=$('graphWrap');
+    if(wrap) wrap.scrollLeft=frac*(wrap.scrollWidth-wrap.clientWidth);
+  });
+  const wrap=$('graphWrap');
+  if(wrap){
+    let raf=false;
+    wrap.addEventListener('scroll',function(){
+      if(raf) return; raf=true;
+      requestAnimationFrame(function(){ raf=false; drawOverview(getDay(curDate)); });
+    });
+  }
+  let rzT=null;
+  window.addEventListener('resize',function(){
+    clearTimeout(rzT);
+    rzT=setTimeout(function(){
+      if($('tab-log').classList.contains('active')) drawOverview(getDay(curDate));
+    },200);
+  });
+}
 function renderChips(){
   $('chipRow').innerHTML=CHIPS.map(c=>'<button class="chip" onclick="addRemark(\''+c.replace(/'/g,"\\'")+'\')">'+c+'</button>').join('');
 }
@@ -667,7 +729,7 @@ function toggleCardFsEl(card){
   document.body.style.overflow=on?'hidden':'';
   const btn=card.querySelector('.fsbtn');
   if(btn) btn.innerHTML=on?'\u2715 Close':'&#9956; Full screen';
-  if(card.id==='graphCard'&&on) drawGraph(getDay(curDate));
+  if(card.id==='graphCard'&&on){ drawGraph(getDay(curDate)); drawOverview(getDay(curDate)); }
   if(on) card.scrollTop=0;
 }
 function toggleFs(cardId, btnId){ toggleCardFsEl($(cardId)); }
@@ -817,8 +879,8 @@ function printInsp(){
 /* ============ guided tour ============ */
 const TOUR=[
  {tab:'tab-setup',title:'Welcome — set up once',text:'Enter your name, carrier, terminal, truck plate and cycle here. The app remembers it and puts it on every log and inspection report.'},
- {tab:'tab-log',title:'Tap your duty status',text:'Through the day, just tap what you are doing: Off Duty, Sleeper, Driving, or On Duty. The app stamps the exact time for you — no writing, no drawing.'},
- {tab:'tab-log',title:'Your graph draws itself',text:'Every tap updates the big 24-hour graph. Anything you enter as a remark — places like Deer Lake, jobs like Loading — shows up right on the graph with its time. Tap the Full screen button, the one in the top bar, or just double-tap any card to see it large.'},
+ {tab:'tab-log',title:'Your whole day at a glance',text:'The strip at the top shows your full 24 hours — tap it to jump to any hour. Below it is the detailed graph. Anything you enter as a remark — places like Deer Lake, jobs like Loading — shows up right on the graph with its time. Double-tap the graph to see it large.'},
+ {tab:'tab-log',title:'Tap your duty status',text:'Right below the graph, just tap what you are doing: Off Duty, Sleeper, Driving, or On Duty. The app stamps the exact time for you — no writing, no drawing.'},
  {tab:'tab-log',title:'Fix any entry',text:'Tapped late or wrong? In Timeline, tap Edit on any entry to fix its time or status, × Delete to remove one, or add a missed entry with the time picker below. Nothing is set in stone.'},
  {tab:'tab-log',title:'Remarks',text:'Tap a chip (Pre-Trip, Loading, Stephenville…) or type your own. Remarks land on the graph and on the printed log, so the company can see what happened and where.'},
  {tab:'tab-insp',title:'Inspection reports',text:'Tap any item that has a defect, add a note, then sign with your finger and save. It attaches to that day and prints with the daily log.'},
