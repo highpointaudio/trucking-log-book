@@ -25,7 +25,7 @@ header p{margin:2px 0 0; font-size:12px; color:#9fb3cc;}
 main{padding:12px 12px 20px; max-width:640px; margin:0 auto;}
 .tab{display:none;}
 .tab.active{display:block;}
-.card{background:var(--card); border-radius:12px; padding:14px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.card{background:var(--card); border-radius:12px; padding:14px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); touch-action:manipulation;}
 .card h2{margin:0 0 10px; font-size:16px;}
 .card h3{margin:12px 0 8px; font-size:14px; color:var(--mut); text-transform:uppercase; letter-spacing:.5px;}
 label{display:block; font-size:13px; color:var(--mut); margin:10px 0 4px;}
@@ -658,14 +658,45 @@ function renderRecap(){
 }
 
 /* ============ fullscreen ============ */
-function toggleFs(cardId, btnId){
-  const card=$(cardId); card.classList.toggle('fs');
-  const on=card.classList.contains('fs');
-  $(btnId).innerHTML=on?'\u2715 Close':'&#9956; Full screen';
+function toggleCardFsEl(card){
+  const on=!card.classList.contains('fs');
+  document.querySelectorAll('.card.fs').forEach(function(c){
+    if(c!==card){ c.classList.remove('fs'); const b=c.querySelector('.fsbtn'); if(b) b.innerHTML='&#9956; Full screen'; }
+  });
+  card.classList.toggle('fs',on);
   document.body.style.overflow=on?'hidden':'';
-  if(cardId==='graphCard') drawGraph(getDay(curDate));
+  const btn=card.querySelector('.fsbtn');
+  if(btn) btn.innerHTML=on?'\u2715 Close':'&#9956; Full screen';
+  if(card.id==='graphCard'&&on) drawGraph(getDay(curDate));
   if(on) card.scrollTop=0;
 }
+function toggleFs(cardId, btnId){ toggleCardFsEl($(cardId)); }
+// Double-tap (or double-click) any card to toggle fullscreen — not on buttons, fields, or the signature pad.
+let lastTapT=0,lastTapCard=null,lastTouchEndT=0;
+function cardFromTap(e){
+  const t=e.target;
+  const card=t&&t.closest?t.closest('.card'):null;
+  if(!card||card.closest('#tourOverlay')) return null;
+  if(t.closest('button,input,select,textarea,a,.sig-wrap,.sigpad')) return null;
+  return card;
+}
+document.addEventListener('touchend',function(e){
+  lastTouchEndT=Date.now();
+  if(e.touches.length>0) return;
+  const card=cardFromTap(e);
+  if(!card) return;
+  const now=Date.now();
+  if(now-lastTapT<350&&lastTapCard===card){
+    e.preventDefault();
+    toggleCardFsEl(card);
+    lastTapT=0; lastTapCard=null;
+  }else{ lastTapT=now; lastTapCard=card; }
+},{passive:false});
+document.addEventListener('dblclick',function(e){
+  if(Date.now()-lastTouchEndT<600) return;
+  const card=cardFromTap(e);
+  if(card) toggleCardFsEl(card);
+});
 function toggleAppFs(){
   const el=document.documentElement;
   if(document.fullscreenElement||document.webkitFullscreenElement){
@@ -787,7 +818,7 @@ function printInsp(){
 const TOUR=[
  {tab:'tab-setup',title:'Welcome — set up once',text:'Enter your name, carrier, terminal, truck plate and cycle here. The app remembers it and puts it on every log and inspection report.'},
  {tab:'tab-log',title:'Tap your duty status',text:'Through the day, just tap what you are doing: Off Duty, Sleeper, Driving, or On Duty. The app stamps the exact time for you — no writing, no drawing.'},
- {tab:'tab-log',title:'Your graph draws itself',text:'Every tap updates the big 24-hour graph. Anything you enter as a remark — places like Deer Lake, jobs like Loading — shows up right on the graph with its time. Tap the Full screen button on the graph, or the one in the top bar, to see it large.'},
+ {tab:'tab-log',title:'Your graph draws itself',text:'Every tap updates the big 24-hour graph. Anything you enter as a remark — places like Deer Lake, jobs like Loading — shows up right on the graph with its time. Tap the Full screen button, the one in the top bar, or just double-tap any card to see it large.'},
  {tab:'tab-log',title:'Fix any entry',text:'Tapped late or wrong? In Timeline, tap Edit on any entry to fix its time or status, × Delete to remove one, or add a missed entry with the time picker below. Nothing is set in stone.'},
  {tab:'tab-log',title:'Remarks',text:'Tap a chip (Pre-Trip, Loading, Stephenville…) or type your own. Remarks land on the graph and on the printed log, so the company can see what happened and where.'},
  {tab:'tab-insp',title:'Inspection reports',text:'Tap any item that has a defect, add a note, then sign with your finger and save. It attaches to that day and prints with the daily log.'},
