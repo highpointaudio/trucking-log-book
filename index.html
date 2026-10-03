@@ -44,7 +44,8 @@ textarea{resize:vertical; min-height:64px;}
 .status-btn[data-s="sleeper"].on{border-color:var(--amber); background:#fdf3e2;}
 .status-btn[data-s="driving"].on{border-color:var(--green); background:#e6f6ee;}
 .status-btn[data-s="onduty"].on{border-color:var(--blue); background:#e8f1fd;}
-#graph{width:100%; height:auto; background:#fff; border:1px solid var(--line); border-radius:9px; touch-action:manipulation;}
+#graphWrap{overflow-x:auto; background:#fff; border:1px solid var(--line); border-radius:9px;}
+#graph{display:block; width:900px; max-width:none; height:auto; touch-action:pan-x pan-y;}
 .timeline{margin:8px 0 0; padding:0; list-style:none; font-size:14px;}
 .timeline li{display:flex; justify-content:space-between; align-items:center; padding:9px 4px; border-bottom:1px solid var(--line);}
 .timeline li:last-child{border-bottom:none;}
@@ -77,6 +78,15 @@ nav.tabs button.on{color:var(--blue); font-weight:700;}
 .dayrow .acts button{border:1px solid var(--line); background:#fff; border-radius:8px; padding:7px 10px; font-size:13px; cursor:pointer;}
 .note{font-size:13px; color:var(--mut); line-height:1.5;}
 .hidden{display:none !important;}
+#helpBtn{position:fixed; right:14px; bottom:78px; width:54px; height:54px; border-radius:50%; background:#12233a; color:#fff; font-size:26px; font-weight:700; border:none; z-index:40; box-shadow:0 2px 8px rgba(0,0,0,.3); cursor:pointer;}
+#tourOverlay{position:fixed; inset:0; background:rgba(10,20,35,.55); z-index:70; display:flex; align-items:flex-end; justify-content:center; padding:16px;}
+.tourcard{background:#fff; border-radius:14px; padding:18px; max-width:520px; width:100%; margin-bottom:72px; box-shadow:0 4px 20px rgba(0,0,0,.25);}
+.tourcard h2{margin:0 0 8px; font-size:17px;}
+.tourcard p{font-size:15px; line-height:1.55; color:#333; margin:0 0 10px;}
+.tourauto{display:flex; gap:8px; align-items:center; font-size:14px; color:var(--mut); margin:6px 0 12px;}
+.tourauto input{width:20px; height:20px;}
+.tournav{display:flex; gap:10px; justify-content:flex-end;}
+.tournav .mini{margin-left:0;}
 #printSheet{display:none;}
 .mini{border:1px solid var(--line); background:#fff; border-radius:10px; padding:12px 18px; font-size:16px; font-weight:600; cursor:pointer; margin-left:6px; white-space:nowrap; min-height:48px;}
 .mini.del{color:var(--red); border-color:#f0c0c0;}
@@ -119,9 +129,21 @@ input[type=time]{width:100%; padding:11px 12px; font-size:16px; border:1px solid
       <label>Home terminal (city, province)</label><input type="text" id="p_terminal" placeholder="Deer Lake, NL">
       <label>Truck / tractor plate</label><input type="text" id="p_plate" placeholder="CJO 943">
       <label>Trailer plate (optional)</label><input type="text" id="p_trailer" placeholder="">
+      <label>Co-driver (optional)</label><input type="text" id="p_codriver" placeholder="">
+      <label>Principal place of business (optional)</label><input type="text" id="p_business" placeholder="Company name and address">
       <label>Cycle</label>
       <select id="p_cycle"><option value="70">70 hr / 7 day</option><option value="120">120 hr / 14 day</option></select>
+      <label style="display:flex;gap:10px;align-items:center;font-size:15px;color:var(--ink);margin-top:12px;">
+        <input type="checkbox" id="p_tour" style="width:22px;height:22px;" checked> Show the guide when the app opens
+      </label>
       <button class="btn" onclick="saveProfile()">Save Setup</button>
+      <button class="btn ghost" onclick="startTour()">Take the app tour</button>
+    </div>
+    <div class="card">
+      <h2>Compliance notes</h2>
+      <p class="note"><b>Canada:</b> this app is built as an electronic recording device under s.83 of the federal Hours of Service Regulations — it records the same information as the paper daily log, keeps the previous 14 days viewable on screen, prints on demand, and tracks your cycle hours. You must still: sign each printed daily log, keep blank paper log forms in the truck (your carrier provides them), and be able to show the last 14 days if an inspector asks.</p>
+      <p class="note"><b>United States:</b> a phone app is not a US FMCSA-registered ELD. If you drive in the United States, you need a registered ELD — this app alone does not satisfy US rules.</p>
+      <p class="note"><b>Limits shown</b> are a guide only. You are responsible for staying within the rules.</p>
     </div>
   </section>
 
@@ -147,8 +169,12 @@ input[type=time]{width:100%; padding:11px 12px; font-size:16px; border:1px solid
     </div>
     <div class="card" id="graphCard">
       <h2>24-Hour Graph <button class="mini fsbtn" id="graphFsBtn" onclick="toggleFs('graphCard','graphFsBtn')">&#9956; Full screen</button></h2>
-      <canvas id="graph" width="720" height="220"></canvas>
+      <div id="graphWrap"><canvas id="graph" width="900" height="360"></canvas></div>
       <div class="totals" id="totals"></div>
+    </div>
+    <div class="card">
+      <h2>Hours &amp; Limits — Canada</h2>
+      <div id="recap"></div>
     </div>
     <div class="card">
       <h2>Timeline</h2>
@@ -164,6 +190,7 @@ input[type=time]{width:100%; padding:11px 12px; font-size:16px; border:1px solid
           <option value="onduty">On Duty (not driving)</option>
         </select></div>
       </div>
+      <div><label>Location — town/city (optional)</label><input type="text" id="ne_loc" placeholder="e.g. Deer Lake, NL"></div>
       <button class="btn" onclick="addPastEntry()">Add entry at that time</button>
     </div>
     <div class="card">
@@ -245,6 +272,20 @@ input[type=time]{width:100%; padding:11px 12px; font-size:16px; border:1px solid
   <button data-t="tab-backup" onclick="showTab('tab-backup')"><span class="ico">&#128190;</span>Backup</button>
 </nav>
 
+<button id="helpBtn" onclick="startTour()" title="App guide">?</button>
+<div id="tourOverlay" class="hidden">
+  <div class="tourcard">
+    <h2 id="tourTitle"></h2>
+    <p id="tourText"></p>
+    <label class="tourauto"><input type="checkbox" id="tourAuto" checked> Show guide when the app opens</label>
+    <div class="tournav">
+      <button class="mini" id="tourBack" onclick="tourNav(-1)">Back</button>
+      <button class="mini" onclick="endTour()">Skip</button>
+      <button class="mini" id="tourNext" onclick="tourNav(1)">Next</button>
+    </div>
+  </div>
+</div>
+
 <div id="printSheet"></div>
 
 <script>
@@ -321,11 +362,16 @@ function fillProfile(){
   $('p_driver').value=p.driver||''; $('p_carrier').value=p.carrier||'';
   $('p_terminal').value=p.terminal||''; $('p_plate').value=p.plate||'';
   $('p_trailer').value=p.trailer||''; $('p_cycle').value=p.cycle||'70';
+  $('p_codriver').value=p.codriver||''; $('p_business').value=p.business||'';
+  $('p_tour').checked=!S.settings||S.settings.showTutorial!==false;
 }
 function saveProfile(){
   S.profile={driver:$('p_driver').value.trim(), carrier:$('p_carrier').value.trim(),
     terminal:$('p_terminal').value.trim(), plate:$('p_plate').value.trim(),
-    trailer:$('p_trailer').value.trim(), cycle:$('p_cycle').value};
+    trailer:$('p_trailer').value.trim(), cycle:$('p_cycle').value,
+    codriver:$('p_codriver').value.trim(), business:$('p_business').value.trim()};
+  S.settings=S.settings||{};
+  S.settings.showTutorial=$('p_tour').checked;
   persist(); alert('Setup saved.'); showTab('tab-log');
 }
 
@@ -343,7 +389,7 @@ function setStatus(st){
   const d=getDay(curDate), ev=d.events, m=nowMin();
   const last=ev[ev.length-1];
   if(last.status===st && last.min===m) return;
-  if(last.status===st){ last.min=m; } else { ev.push({min:m,status:st}); }
+  if(last.status===st){ last.min=m; } else { ev.push({min:m,status:st,loc:''}); }
   saveDay(); renderLog();
 }
 function renderLog(){
@@ -353,7 +399,7 @@ function renderLog(){
   const cs=curStatus();
   const pill=$('nowStatus'); pill.textContent=statusLabel(cs); pill.className='pill '+cs;
   document.querySelectorAll('.status-btn').forEach(b=>b.classList.toggle('on', b.dataset.s===cs));
-  drawGraph(d); renderTotals(d); renderTimeline(d); renderRemarks(d); renderChips();
+  drawGraph(d); renderTotals(d); renderRecap(); renderTimeline(d); renderRemarks(d); renderChips();
   loadSig($('sigpad'), d.sig);
 }
 function totalsFor(d){
@@ -385,7 +431,7 @@ function renderTimeline(d){
       ? '<span><button class="mini" onclick="editEvent('+i+')">Status</button></span>'
       : '<span><button class="mini" onclick="editEvent('+i+')">Edit</button><button class="mini del" onclick="delEvent('+i+')">Delete</button></span>';
     return '<li id="evrow_'+i+'"><span><span class="pill '+e.status+'">'+statusLabel(e.status)+
-      '</span></span><span>'+fmtMin(e.min)+' &ndash; '+end+'</span>'+btns+'</li>';
+      '</span></span><span>'+fmtMin(e.min)+' &ndash; '+end+(e.loc?'<br><span class="note">'+escapeHtml(e.loc)+'</span>':'')+'</span>'+btns+'</li>';
   }).join('');
 }
 function editEvent(i){
@@ -396,7 +442,8 @@ function editEvent(i){
     ? '<span class="note">00:00 — start of day (fixed)</span>'
     : '<label>Time</label><input type="time" id="ee_time" value="'+fmtMin(e.min)+'">';
   row.innerHTML='<div style="flex:1;min-width:150px;">'+timePart+
-    '<label>Status</label><select id="ee_status">'+opts+'</select></div>'+
+    '<label>Status</label><select id="ee_status">'+opts+'</select>'+
+    '<label>Location (optional)</label><input type="text" id="ee_loc" value="'+escapeHtml(e.loc||'').replace(/"/g,'&quot;')+'"></div>'+
     '<span><button class="mini" onclick="saveEventEdit('+i+')">Save</button>'+
     '<button class="mini" onclick="renderTimeline(getDay(curDate))">Cancel</button></span>';
 }
@@ -405,16 +452,16 @@ function saveEventEdit(i){
   let m=d.events[i].min;
   const te=$('ee_time');
   if(te&&te.value){ const parts=te.value.split(':'); m=(+parts[0])*60+(+parts[1]); }
-  d.events[i]={min:m, status:$('ee_status').value};
+  d.events[i]={min:m, status:$('ee_status').value, loc:$('ee_loc').value.trim()};
   d.events.sort((a,b)=>a.min-b.min);
-  if(d.events[0].min!==0) d.events.unshift({min:0,status:'off'});
+  if(d.events[0].min!==0) d.events.unshift({min:0,status:'off',loc:''});
   saveDay(); renderLog();
 }
 function delEvent(i){
   const d=getDay(curDate);
   if(!confirm('Delete this entry ('+statusLabel(d.events[i].status)+' at '+fmtMin(d.events[i].min)+')?')) return;
   d.events.splice(i,1);
-  if(d.events.length===0||d.events[0].min!==0) d.events.unshift({min:0,status:'off'});
+  if(d.events.length===0||d.events[0].min!==0) d.events.unshift({min:0,status:'off',loc:''});
   saveDay(); renderLog();
 }
 function addPastEntry(){
@@ -422,42 +469,77 @@ function addPastEntry(){
   if(!tv){ alert('Pick a time first.'); return; }
   const parts=tv.split(':'), m=(+parts[0])*60+(+parts[1]);
   const d=getDay(curDate);
-  d.events.push({min:m, status:$('ne_status').value});
+  d.events.push({min:m, status:$('ne_status').value, loc:$('ne_loc').value.trim()});
   d.events.sort((a,b)=>a.min-b.min);
-  if(d.events[0].min!==0) d.events.unshift({min:0,status:'off'});
-  $('ne_time').value='';
+  if(d.events[0].min!==0) d.events.unshift({min:0,status:'off',loc:''});
+  $('ne_time').value=''; $('ne_loc').value='';
   saveDay(); renderLog();
+}
+const STATUS_COLORS={off:'#8a94a3',sleeper:'#d9931b',driving:'#1d9e57',onduty:'#1b6fd6'};
+const ROW_LABELS={off:'Off duty',sleeper:'Sleeper',driving:'Driving',onduty:'On duty'};
+function statusAt(d,min){
+  let st=d.events[0].status;
+  for(const e of d.events){ if(e.min<=min) st=e.status; else break; }
+  return st;
 }
 function drawGraph(d){
   const c=$('graph'), ctx=c.getContext('2d');
-  const W=c.width, H=c.height, L=86, R=8, T=8, B=18;
-  const gw=W-L-R, gh=H-T-B;
+  const W=c.width, H=c.height, L=112, R=14, T=48, B=30;
+  const gw=W-L-R, gh=H-T-B, rows=4, rh=gh/rows;
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
-  const rows=STATUSES.length, rh=gh/rows;
-  ctx.strokeStyle='#dfe5ec'; ctx.lineWidth=1; ctx.fillStyle='#6b7686'; ctx.font='11px sans-serif';
-  STATUSES.forEach((s,i)=>{
-    const y=T+i*rh;
-    ctx.beginPath(); ctx.moveTo(L,y); ctx.lineTo(W-R,y); ctx.stroke();
-    ctx.fillText(s.label,4,y+rh/2+4);
-  });
-  ctx.beginPath(); ctx.moveTo(L,T+gh); ctx.lineTo(W-R,T+gh); ctx.stroke();
-  for(let h=0;h<=24;h++){
-    const x=L+gw*h/24;
-    ctx.strokeStyle=h%3===0?'#b9c4d2':'#eef1f5';
-    ctx.beginPath(); ctx.moveTo(x,T); ctx.lineTo(x,T+gh); ctx.stroke();
-    if(h%3===0){ ctx.fillStyle='#6b7686'; ctx.fillText(h+'',x-4,H-4); }
-  }
   const yFor=st=>{ const i=STATUSES.findIndex(s=>s.id===st); return T+i*rh+rh/2; };
   const xFor=m=>L+gw*Math.min(1440,Math.max(0,m))/1440;
-  ctx.strokeStyle='#1b6fd6'; ctx.lineWidth=3; ctx.beginPath();
-  const ev=d.events;
-  ev.forEach((e,i)=>{
-    const x1=xFor(e.min), x2=xFor(i+1<ev.length?ev[i+1].min:1440), y=yFor(e.status);
-    if(i===0) ctx.moveTo(x1,y); else ctx.lineTo(x1,y);
-    ctx.lineTo(x2,y);
+  STATUSES.forEach((s,i)=>{
+    const y=T+i*rh;
+    if(i%2===0){ ctx.fillStyle='#f6f8fa'; ctx.fillRect(L,y,gw,rh); }
+    ctx.strokeStyle='#d7dee7'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(L,y); ctx.lineTo(W-R,y); ctx.stroke();
+    ctx.fillStyle=STATUS_COLORS[s.id];
+    ctx.fillRect(8,y+rh/2-9,12,18);
+    ctx.fillStyle='#1a2332'; ctx.font='bold 16px sans-serif'; ctx.textAlign='left';
+    ctx.fillText(ROW_LABELS[s.id],26,y+rh/2+6);
   });
-  ctx.stroke();
+  ctx.strokeStyle='#d7dee7'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(L,T+gh); ctx.lineTo(W-R,T+gh); ctx.stroke();
+  ctx.font='13px sans-serif'; ctx.textAlign='center';
+  for(let h=0;h<=24;h++){
+    const x=L+gw*h/24, major=h%2===0;
+    ctx.strokeStyle=h%6===0?'#9aa7b8':(major?'#d7dee7':'#edf1f5');
+    ctx.lineWidth=h%6===0?2:1;
+    ctx.beginPath(); ctx.moveTo(x,T); ctx.lineTo(x,T+gh); ctx.stroke();
+    if(major){ ctx.fillStyle='#4c5866'; ctx.fillText(pad2(h)+':00',x,H-10); }
+  }
+  const ev=d.events;
+  ctx.lineWidth=6; ctx.lineCap='round'; ctx.lineJoin='round';
+  ev.forEach((e,i)=>{
+    const x1=xFor(e.min), x2=xFor(i+1<ev.length?ev[i+1].min:1440);
+    ctx.strokeStyle=STATUS_COLORS[e.status];
+    ctx.beginPath();
+    if(i===0){ ctx.moveTo(x1,yFor(e.status)); }
+    else{ ctx.moveTo(x1,yFor(ev[i-1].status)); ctx.lineTo(x1,yFor(e.status)); }
+    ctx.lineTo(x2,yFor(e.status));
+    ctx.stroke();
+  });
+  const remarks=(d.remarks||[]).slice().sort((a,b)=>a.t<b.t?-1:1);
+  ctx.font='14px sans-serif'; ctx.textAlign='left';
+  remarks.forEach((r,k)=>{
+    const p=r.t.split(':'), m=(+p[0])*60+(+p[1]);
+    const x=xFor(m), y=yFor(statusAt(d,m));
+    ctx.fillStyle='#d64545';
+    ctx.beginPath(); ctx.arc(x,y,7,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
+    const lane=k%2, ly=16+lane*20;
+    ctx.strokeStyle='#d64545'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(x,y-9); ctx.lineTo(x,ly+15); ctx.stroke();
+    const label=r.t+'  '+r.text;
+    const tw=ctx.measureText(label).width;
+    let lx=x+8; if(lx+tw>W-R-2) lx=W-R-2-tw; if(lx<L) lx=L;
+    ctx.fillStyle='#a32424';
+    ctx.fillText(label,lx,ly+14);
+  });
+  ctx.textAlign='left';
 }
 function renderChips(){
   $('chipRow').innerHTML=CHIPS.map(c=>'<button class="chip" onclick="addRemark(\''+c.replace(/'/g,"\\'")+'\')">'+c+'</button>').join('');
@@ -551,6 +633,29 @@ function loadInspIntoForm(){
   loadSig($('isigpad'), insp.sig||'');
 }
 
+/* ============ hours recap (Canada) ============ */
+function cycleRecap(){
+  const p=S.profile||{}, limit=+(p.cycle||70), span=limit===120?14:7;
+  const days=[];
+  for(let i=span-1;i>=0;i--){
+    const dt=todayStr(-i), d=S.days[dt];
+    const t=d?totalsFor(d):{driving:0,onduty:0};
+    days.push({date:dt, onDuty:t.driving+t.onduty});
+  }
+  const accum=days.reduce((a,x)=>a+x.onDuty,0);
+  return {accum, remaining:Math.max(0,limit*60-accum), limit, span};
+}
+function renderRecap(){
+  const d=getDay(curDate), t=totalsFor(d), r=cycleRecap();
+  const drv=(t.driving/60).toFixed(1), od=((t.driving+t.onduty)/60).toFixed(1);
+  $('recap').innerHTML='<div class="totals">'+
+    '<div class="total">Driving today<b>'+drv+' / 13 h</b></div>'+
+    '<div class="total">On-duty today<b>'+od+' / 14 h</b></div>'+
+    '<div class="total">Cycle on-duty ('+r.span+'d)<b>'+(r.accum/60).toFixed(1)+' / '+r.limit+' h</b></div>'+
+    '<div class="total">Cycle hours left<b>'+(r.remaining/60).toFixed(1)+' h</b></div></div>'+
+    '<p class="note">Canadian daily limits: 13 h driving, 14 h on-duty, 10 h off-duty. A guide only — you are responsible for staying within the rules.</p>';
+}
+
 /* ============ fullscreen ============ */
 function toggleFs(cardId, btnId){
   const card=$(cardId); card.classList.toggle('fs');
@@ -611,19 +716,20 @@ function dailyLogInner(dt){
   const d=S.days[dt]||blankDay(dt), p=S.profile||{}, t=totalsFor(d);
   const evRows=d.events.map((e,i)=>{
     const end=(i+1<d.events.length)?fmtMin(d.events[i+1].min):'24:00';
-    return '<tr><td>'+fmtMin(e.min)+' – '+end+'</td><td>'+statusLabel(e.status)+'</td></tr>';
+    return '<tr><td>'+fmtMin(e.min)+' – '+end+'</td><td>'+statusLabel(e.status)+'</td><td>'+escapeHtml(e.loc||'')+'</td></tr>';
   }).join('');
   const remRows=(d.remarks||[]).map(r=>'<tr><td>'+r.t+'</td><td>'+escapeHtml(r.text)+'</td></tr>').join('')||'<tr><td colspan="2">—</td></tr>';
   let h=
     '<div class="sec"><h2>Driver\'s Daily Log — '+niceDate(dt)+'</h2>'+
     '<table><tr><th>Driver</th><td>'+escapeHtml(p.driver||'')+'</td><th>Carrier</th><td>'+escapeHtml(p.carrier||'')+'</td></tr>'+
     '<tr><th>Home terminal</th><td>'+escapeHtml(p.terminal||'')+'</td><th>Cycle</th><td>'+(p.cycle||'70')+' hr / '+(p.cycle==='120'?'14':'7')+' day</td></tr>'+
+    '<tr><th>Co-driver</th><td>'+escapeHtml(p.codriver||'—')+'</td><th>Principal place of business</th><td>'+escapeHtml(p.business||'—')+'</td></tr>'+
     '<tr><th>Truck plate</th><td>'+escapeHtml(p.plate||'')+'</td><th>Trailer</th><td>'+escapeHtml(p.trailer||'')+'</td></tr>'+
     '<tr><th>Start odometer</th><td>'+escapeHtml(String(d.startOdo))+'</td><th>End odometer</th><td>'+escapeHtml(String(d.endOdo))+'</td></tr>'+
     '<tr><th>Total distance</th><td>'+distStr(d)+'</td><th>Off duty</th><td>'+fmtH(t.off)+'</td></tr>'+
     '<tr><th>Sleeper berth</th><td>'+fmtH(t.sleeper)+'</td><th>Driving</th><td>'+fmtH(t.driving)+'</td></tr>'+
     '<tr><th>On duty (not driving)</th><td>'+fmtH(t.onduty)+'</td><th>On-duty total</th><td>'+fmtH(t.driving+t.onduty)+'</td></tr></table></div>'+
-    '<div class="sec"><h2>Duty Status Changes</h2><table><tr><th>Time</th><th>Status</th></tr>'+evRows+'</table></div>'+
+    '<div class="sec"><h2>Duty Status Changes</h2><table><tr><th>Time</th><th>Status</th><th>Location</th></tr>'+evRows+'</table></div>'+
     '<div class="sec"><h2>Remarks</h2><table><tr><th>Time</th><th>Remark</th></tr>'+remRows+'</table></div>'+
     (d.sig?'<div class="sec"><h2>Driver Signature</h2><img class="sig" src="'+d.sig+'"></div>':'');
   const insp=d.insp;
@@ -676,6 +782,43 @@ function printInsp(){
   window.print();
 }
 
+/* ============ guided tour ============ */
+const TOUR=[
+ {tab:'tab-setup',title:'Welcome — set up once',text:'Enter your name, carrier, terminal, truck plate and cycle here. The app remembers it and puts it on every log and inspection report.'},
+ {tab:'tab-log',title:'Tap your duty status',text:'Through the day, just tap what you are doing: Off Duty, Sleeper, Driving, or On Duty. The app stamps the exact time for you — no writing, no drawing.'},
+ {tab:'tab-log',title:'Your graph draws itself',text:'Every tap updates the big 24-hour graph. Anything you enter as a remark — places like Deer Lake, jobs like Loading — shows up right on the graph with its time. Tap the Full screen button on the graph, or the one in the top bar, to see it large.'},
+ {tab:'tab-log',title:'Fix any entry',text:'Tapped late or wrong? In Timeline, tap Edit on any entry to fix its time or status, × Delete to remove one, or add a missed entry with the time picker below. Nothing is set in stone.'},
+ {tab:'tab-log',title:'Remarks',text:'Tap a chip (Pre-Trip, Loading, Stephenville…) or type your own. Remarks land on the graph and on the printed log, so the company can see what happened and where.'},
+ {tab:'tab-insp',title:'Inspection reports',text:'Tap any item that has a defect, add a note, then sign with your finger and save. It attaches to that day and prints with the daily log.'},
+ {tab:'tab-days',title:'Days and records',text:'Every day is saved here. Open any day, print it, or tap File to save that day as its own dated record file.'},
+ {tab:'tab-backup',title:'Back up',text:'Export a backup file now and then so your logs are always safe. That is the whole app — tap the ? button anytime to see this guide again. Happy trucking!'}
+];
+let tourIdx=-1;
+function startTour(){ tourIdx=0; showTourStep(); }
+function showTourStep(){
+  const s=TOUR[tourIdx];
+  showTab(s.tab);
+  $('tourTitle').textContent=s.title;
+  $('tourText').textContent=s.text;
+  $('tourBack').style.visibility=tourIdx===0?'hidden':'visible';
+  $('tourNext').textContent=tourIdx===TOUR.length-1?'Finish':'Next →';
+  $('tourAuto').checked=!S.settings||S.settings.showTutorial!==false;
+  $('tourOverlay').classList.remove('hidden');
+}
+function tourNav(d){
+  tourIdx+=d;
+  if(tourIdx<0) tourIdx=0;
+  if(tourIdx>=TOUR.length){ endTour(); return; }
+  showTourStep();
+}
+function endTour(){
+  S.settings=S.settings||{};
+  S.settings.showTutorial=$('tourAuto').checked;
+  persist();
+  $('tourOverlay').classList.add('hidden');
+  tourIdx=-1;
+}
+
 /* ============ init ============ */
 wireSig($('sigpad'), dataURL=>{ getDay(curDate).sig=dataURL; saveDay(); });
 wireSig($('isigpad'), dataURL=>{ const d=getDay(curDate); if(!d.insp) d.insp={}; d.insp.sig=dataURL; saveDay(); });
@@ -683,7 +826,9 @@ $('d_startOdo').addEventListener('change',()=>{ getDay(curDate).startOdo=$('d_st
 $('d_endOdo').addEventListener('change',()=>{ getDay(curDate).endOdo=$('d_endOdo').value; saveDay(); renderTotals(getDay(curDate)); });
 fillProfile();
 renderInspList();
+S.settings=S.settings||{};
 if(!S.profile){ showTab('tab-setup'); } else { showTab('tab-log'); }
+if(S.settings.showTutorial!==false){ startTour(); }
 </script>
 <script>
 if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
