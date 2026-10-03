@@ -833,7 +833,17 @@ if(S.settings.showTutorial!==false){ startTour(); }
 </script>
 <script>
 if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
-  navigator.serviceWorker.register('sw.js').catch(function(){});
+  navigator.serviceWorker.register('sw.js').then(function(reg){
+    reg.addEventListener('updatefound',function(){
+      var nw=reg.installing;
+      if(!nw) return;
+      nw.addEventListener('statechange',function(){
+        if(nw.state==='installed' && navigator.serviceWorker.controller){
+          window.location.reload();
+        }
+      });
+    });
+  }).catch(function(){});
 }
 </script>
 </body>
