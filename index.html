@@ -171,12 +171,10 @@ input[type=time]{width:100%; padding:11px 12px; font-size:16px; border:1px solid
       <b id="logDateLabel"></b>
       <button onclick="moveDay(1)">&rarr;</button>
     </div>
-    <div class="card" id="graphCard">
-      <h2>24-Hour Graph <button class="mini fsbtn" id="graphFsBtn" onclick="toggleFs('graphCard','graphFsBtn')">&#9956; Full screen</button></h2>
+        <div class="card" id="overviewCard">
+      <h2>Day at a Glance</h2>
       <p class="note" style="margin:0 0 4px">Full day at a glance &mdash; tap the strip to jump to any hour</p>
       <canvas id="overview"></canvas>
-      <div id="graphWrap"><canvas id="graph" width="900" height="360"></canvas></div>
-      <div class="totals" id="totals"></div>
     </div>
     <div class="card">
       <h2>Right now: <span id="nowStatus" class="pill off">Off Duty</span></h2>
@@ -190,6 +188,11 @@ input[type=time]{width:100%; padding:11px 12px; font-size:16px; border:1px solid
         <div><label>Start odometer</label><input type="number" id="d_startOdo" inputmode="numeric" onchange="saveDay()"></div>
         <div><label>End odometer</label><input type="number" id="d_endOdo" inputmode="numeric" onchange="saveDay()"></div>
       </div>
+    </div>
+    <div class="card" id="graphCard">
+      <h2>24-Hour Graph <button class="mini fsbtn" id="graphFsBtn" onclick="toggleFs('graphCard','graphFsBtn')">&#9956; Full screen</button></h2>
+      <div id="graphWrap"><canvas id="graph" width="900" height="360"></canvas></div>
+      <div class="totals" id="totals"></div>
     </div>
     <div class="card">
       <h2>Timeline</h2>
@@ -894,8 +897,8 @@ function printInsp(){
 /* ============ guided tour ============ */
 const TOUR=[
  {tab:'tab-setup',title:'Welcome — set up once',text:'Enter your name, carrier, terminal, truck plate and cycle here. The app remembers it and puts it on every log and inspection report.'},
- {tab:'tab-log',title:'Your whole day at a glance',text:'The strip at the top shows your full 24 hours — tap it to jump to any hour. Below it is the detailed graph. Anything you enter as a remark — places like Deer Lake, jobs like Loading — shows up right on the graph with its time. Double-tap the graph to see it large.'},
- {tab:'tab-log',title:'Tap your duty status',text:'Right below the graph, just tap what you are doing: Off Duty, Sleeper, Driving, or On Duty. The app stamps the exact time for you — no writing, no drawing.'},
+ {tab:'tab-log',title:'Your whole day at a glance',text:'The strip at the top shows your full 24 hours — tap it to jump to any hour. Your entry buttons sit right below it, and the detailed graph is just under those. Anything you enter as a remark — places like Deer Lake, jobs like Loading — shows up right on the graph with its time. Double-tap any card to see it large.'},
+ {tab:'tab-log',title:'Tap your duty status',text:'Right under the day overview, just tap what you are doing: Off Duty, Sleeper, Driving, or On Duty. The app stamps the exact time for you — no writing, no drawing.'},
  {tab:'tab-log',title:'Fix any entry',text:'Tapped late or wrong? In Timeline, tap Edit on any entry to fix its time or status, × Delete to remove one, or add a missed entry with the time picker below. Nothing is set in stone.'},
  {tab:'tab-log',title:'Remarks',text:'Tap a chip (Pre-Trip, Loading, Stephenville…) or type your own. Remarks land on the graph and on the printed log, so the company can see what happened and where.'},
  {tab:'tab-insp',title:'Inspection reports',text:'Tap any item that has a defect, add a note, then sign with your finger and save. It attaches to that day and prints with the daily log.'},
